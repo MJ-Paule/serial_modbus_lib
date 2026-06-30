@@ -1,4 +1,4 @@
 [project]
-name = "serial-lib"
+name = "serial_modbus_lib"
 version = "0.1.0"
 dependencies = []
