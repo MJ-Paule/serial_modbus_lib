@@ -1,78 +1,89 @@
 # serial_modbus_lib
 
-`serial_modbus_lib` ist eine kleine Hilfsbibliothek zur Erstellung einer seriellen Verbindung mit `pyserial` auf Basis einer JSON-Konfiguration.
+`serial_modbus_lib` ist eine kleine Hilfsbibliothek zur Initialisierung serieller Verbindungen mittels `pyserial` auf Basis einer JSON-Konfiguration. Sie ist als leichtgewichtiger Baustein für Modbus-over-Serial Setups in Tests und Beispielprojekten gedacht.
 
-## Funktionen
+Kurz: Features
+- Lädt serielle Konfigurationen aus JSON-Dateien
+- Erzeugt fertig konfigurierte `serial.Serial`-Instanzen
+- Sucht serielle Schnittstellen anhand von Geräte-Serialnummern
+- Kleine, erweiterbare API für Entwicklungs- und Testzwecke
 
-- `load_config(path: Path) -> dict`
-  - Lädt Konfigurationen aus einer JSON-Datei.
-- `create_serial_con(config: dict) -> serial.Serial`
-  - Erzeugt eine `serial.Serial`-Instanz aus der geladenen Konfiguration.
+Voraussetzungen
+- Python 3.10 oder neuer empfohlen
+- `pyserial` (in `pyproject.toml` als Abhängigkeit angegeben)
 
-## Installation
+Installation (Entwicklung)
+1. Virtuelle Umgebung anlegen und aktivieren (empfohlen):
 
-1. Python 3.8+ installieren.
+   python -m venv .venv
+   source .venv/bin/activate
+
 2. Abhängigkeiten installieren:
 
-```bash
-python -m pip install pyserial
-```
+   pip install -e .
 
-> Hinweis: Im aktuellen `pyproject.toml` sind noch keine Abhängigkeiten eingetragen. Mindestens `pyserial` wird für den Betrieb benötigt.
+   Alternativ nur `pyserial` direkt installieren:
 
-## Projektstruktur
+   pip install pyserial
 
-- `serial_modbus_lib/serial.py`
-  - Enthält die Kernfunktionen für Konfigurationslade- und Verbindungsaufbau.
-- `pyproject.toml`
-  - Projektmetadaten.
+Schnellstart / Nutzung
 
-## Nutzung
-
-1. Erstelle eine JSON-Konfigurationsdatei, z. B. `config.json`:
+1. Beispiel `config.json` (wichtig: `relay_board.allowed_serials` wird zur Port-Erkennung genutzt):
 
 ```json
 {
   "serial": {
-    "port": "/dev/ttyUSB0",
     "baudrate": 19200,
     "bytesize": 8,
     "parity": "N",
     "stopbits": 1,
     "timeout": 1
+  },
+  "relay_board": {
+    "allowed_serials": ["ABCD1234", "EFGH5678"]
   }
 }
 ```
 
-2. Verwende die Bibliothek in deinem Python-Skript:
+2. Beispielcode (korrekter Import via Paketoberfläche):
 
 ```python
 from pathlib import Path
-from serial_modbus_lib.serial import load_config, create_serial_con
+from serial_modbus_lib import load_config, create_serial_con
 
-config_path = Path("config.json")
-config = load_config(config_path)
-serial_connection = create_serial_con(config)
+config = load_config(Path('config.json'))
+ser = create_serial_con(config)
 
-print(serial_connection)
+# Beispiel: einfache Schreib-/Lese-Operation (je nach Protokoll)
+ser.write(b'\x01\x03\x00\x00\x00\x01')
+data = ser.read(128)
+print(data)
+
+# Verbindung schließen
+ser.close()
 ```
 
-## JSON-Konfiguration
+Wichtige Hinweise zur Konfiguration
+- Die Config muss die Sektionen `serial` und `relay_board` enthalten.
+- `serial` benötigt die Keys: `baudrate`, `bytesize`, `parity`, `stopbits`, `timeout`.
+- `relay_board.allowed_serials` ist eine Liste von Seriennummern (Strings), die zur Auswahl des Geräts verwendet wird.
 
-Die Konfiguration muss den Schlüssel `serial` enthalten und folgende Einträge bereitstellen:
+Tests
+- Tests im Gesamtprojekt mit `pytest` ausführen (z. B. aus Projekt-Root):
 
-- `port`: Serieller Port, z. B. `/dev/ttyUSB0` oder `COM3`
-- `baudrate`: Baudrate als Ganzzahl
-- `bytesize`: Anzahl der Datenbits (`5`, `6`, `7`, `8`)
-- `parity`: Parität als String (`N`, `E`, `O`)
-- `stopbits`: Anzahl der Stopbits (`1`, `2`)
-- `timeout`: Timeout in Sekunden
+  pytest -q
 
-## Fehlerbehandlung
+Fehlerbehandlung & Troubleshooting
+- Fehlende Sektionen oder Parameter: Es wird ein `ValueError` geworfen.
+- Kein passendes Gerät gefunden: `RuntimeError` mit Liste der gesuchten Seriennummern.
+- Gerät nicht sichtbar: Prüfe Systemlogs (`dmesg`), verfügbare Ports (`ls /dev/tty*`) und Benutzerberechtigungen.
 
-- Es wird `ValueError` ausgelöst, wenn die `serial`-Sektion fehlt oder erforderliche Parameter nicht vorhanden sind.
+Weiterentwicklung
+- Ideen: Modbus-spezifische Wrapper, Retry-Logik, erweitertes Logging und Timeouts.
 
-## Hinweise
+Contributing
+- Fork → Feature-Branch → Commit → Pull Request. Änderungen mit Tests beschreiben.
 
-- Diese Bibliothek stellt derzeit nur eine Konfigurations-basierte Initialisierung bereit.
-- Anpassungen für Modbus-spezifische Protokolle oder zusätzliche `pyserial`-Optionen können direkt in `serial_modbus_lib/serial.py` vorgenommen werden.
+Lizenz
+- Im Repo ist keine Lizenzdatei enthalten; bitte bei Bedarf eine passende Lizenz ergänzen.
+
